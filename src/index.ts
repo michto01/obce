@@ -1,5 +1,5 @@
 import { getEDeskyID } from "./edesky";
-import { getLocation } from "./ruian";
+import { getLocation } from "./datasource/ruian";
 import { guessMunicipalityCOA } from "./coa";
 import { DataSource, addExtraData } from "./sources";
 import { parseXml } from "libxmljs";
