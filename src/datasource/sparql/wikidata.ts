@@ -48,7 +48,7 @@ interface WikiQueryResult {
 }
 
 //NOTE: number may return NaN!
-interface WikiResponse {
+export interface WikiResponse {
     ico: string;
     municipalityID: string;
     source: string;
@@ -68,8 +68,8 @@ export async function queryWikidata(
     const sparql = await sparql_query(ENDPOINT, QUERY, {offset: offset, limit: limit});
 
     const parser = new SparqlJsonParser();
-    return parser.parseJsonResults(sparql.data).map((e: any) => { 
-        const tc = e as WikiQueryResult;
+    return parser.parseJsonResults(sparql.data).map(e => { 
+        const tc = e as unknown as WikiQueryResult;
         if (tc == null) return;
         return {
             ico: sparql_value(tc.ico),
@@ -85,8 +85,10 @@ export async function queryWikidata(
     }) as [WikiResponse];
 }
 
+/* Example:
 queryWikidata().then((result) => {
     console.log(result);
 }).catch((err) => {
     console.error(err);
 });
+*/

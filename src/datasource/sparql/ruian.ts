@@ -20,7 +20,7 @@ PREFIX geo: <http://www.opengis.net/ont/geosparql#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX ruian: <https://linked.cuzk.cz/ontology/ruian/>
 
-SELECT ?adresniMistoKod ?lat ?lon ?cisloOrientacni ?cisloDomovni ?uliceNazev ?castObceNazev ?obecNazev
+SELECT ?addr ?adresniMistoKod ?lat ?lon ?cisloOrientacni ?cisloDomovni ?uliceNazev ?castObceNazev ?obecNazev
 WHERE {
   VALUES ?addr { @ADRESNI_MISTO@ }
   
@@ -44,6 +44,7 @@ WHERE {
 `
 
 interface QueryRUAINResult {
+    addr: SparqlNode;
     adresniMistoKod: SparqlNode;
     lat: SparqlNode;
     lon: SparqlNode;
@@ -55,6 +56,7 @@ interface QueryRUAINResult {
 }
 
 export type AddressRUIAN = {
+    addresniBod: string;
     kod: string;
     souradnice: [number, number];
     cisloOrientacni: number | null;
@@ -64,6 +66,22 @@ export type AddressRUIAN = {
     obec: string;
 }
 
+const parseAddressPoint = (q : QueryRUAINResult) => {
+    return {
+        addresniBod: sparql_value(q.addr),
+        kod: sparql_value(q.adresniMistoKod),
+        souradnice: [Number(sparql_value(q.lat)), Number(sparql_value(q.lon))],
+        cisloOrientacni: sparql_value(q.cisloOrientacni) != null ? Number(sparql_value(q.cisloOrientacni)) : null,
+        cisloDomovni: sparql_value(q.cisloDomovni) != null ? Number(sparql_value(q.cisloDomovni)) : null,
+        ulice: sparql_value(q.uliceNazev),
+        castObce: sparql_value(q.castObceNazev),
+        obec: sparql_value(q.obecNazev)
+    }
+};
+
+/*! Get single Address from RUIAN using code
+ * 
+ */
 export async function queryRuianAddressPoint(
     point: string
 ) : Promise<[AddressRUIAN]> {
@@ -71,47 +89,37 @@ export async function queryRuianAddressPoint(
     const sparql = await sparql_query(ENDPOINT, query, { limit: 10, offset: 0});
     const parser = new SparqlJsonParser();
 
-    return parser.parseJsonResults(sparql.data).map((e: any) => {
-        const tc = e as QueryRUAINResult;
+    return parser.parseJsonResults(sparql.data).map(e => {
+        const tc = e as unknown as QueryRUAINResult;
         if (tc == null) return;
-        return {
-            kod: sparql_value(tc.adresniMistoKod),
-            souradnice: [Number(sparql_value(tc.lat)), Number(sparql_value(tc.lon))],
-            cisloOrientacni: sparql_value(tc.cisloOrientacni) != null ? Number(sparql_value(tc.cisloOrientacni)) : null,
-            cisloDomovni: sparql_value(tc.cisloDomovni) != null ? Number(sparql_value(tc.cisloDomovni)) : null,
-            ulice: sparql_value(tc.uliceNazev),
-            castObce: sparql_value(tc.castObceNazev),
-            obec: sparql_value(tc.obecNazev)
-        }
+        return parseAddressPoint(tc);
     }) as [AddressRUIAN];
 }
 
+/*! Get multiple Addresses from RUIAN at once.
+ * 
+ * @note The RUIAN SPARQL will reject queries with over ?80? addresses.
+ *       The current query should be revised, otherwise use batch processing
+ *       as shown in `./odrrp.ts`.
+ */
 export async function queryRuianAddressPointURIs(
     point_uris: [string]
 ) : Promise<[AddressRUIAN]> {
-    const envelope = point_uris.map((e : any) => {return `<${e}>`}).join(' ');
+    const envelope = point_uris.map(e => `<${e}>`).join(' ');
     const query = QUERY.replace("@ADRESNI_MISTO@", `${envelope}`);
     const sparql = await sparql_query(ENDPOINT, query, { limit: 10000, offset: 0});
     const parser = new SparqlJsonParser();
 
-    return parser.parseJsonResults(sparql.data).map((e: any) => {
-        const tc = e as QueryRUAINResult;
+    return parser.parseJsonResults(sparql.data).map(e => {
+        const tc = e as unknown as QueryRUAINResult;
         if (tc == null) return;
-        return {
-            kod: sparql_value(tc.adresniMistoKod),
-            souradnice: [Number(sparql_value(tc.lat)), Number(sparql_value(tc.lon))],
-            cisloOrientacni: sparql_value(tc.cisloOrientacni) != null ? Number(sparql_value(tc.cisloOrientacni)) : null,
-            cisloDomovni: sparql_value(tc.cisloDomovni) != null ? Number(sparql_value(tc.cisloDomovni)) : null,
-            ulice: sparql_value(tc.uliceNazev),
-            castObce: sparql_value(tc.castObceNazev),
-            obec: sparql_value(tc.obecNazev)
-        }
+        return parseAddressPoint(tc);
     }) as [AddressRUIAN];
 }
+
 /*
+Example:
 queryRuianAddressPoint('21511888').then((result) => {
     console.log(result);
-})
-
-queryRuianAddressPointURIs()
+});
 */

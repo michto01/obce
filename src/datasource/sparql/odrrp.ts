@@ -11,6 +11,8 @@
 import { SparqlJsonParser } from "sparqljson-parse";
 import { SparqlNode, sparql_query, sparql_value } from "./@generic";
 import { queryRuianAddressPointURIs, AddressRUIAN } from "./ruian";
+import { writeFileSync } from "fs";
+import { queryWikidata } from "./wikidata";
 
 const ENDPOINT='https://rpp-opendata.egon.gov.cz/odrpp/sparql';
 
@@ -33,46 +35,31 @@ WHERE {
 `
 
 interface QueryResult {
-    ico: SparqlNode;
-    addr: SparqlNode;
-    meyer: SparqlNode;
+  ico: SparqlNode;
+  addr: SparqlNode;
+  meyer: SparqlNode;
 }
 
 export type Meyer = {
-    ico: string;
-    meyer: string | null;
-    addr: string;
+  ico: string;
+  meyer: string | null;
+  addr: string;
 }
 
-export async function queryODRRPMetadataDatabase(
-    limit : number = 10000,
-    offset : number = 0
+export async function queryEgon(
+  limit : number = 10000,
+  offset : number = 0
 ) : Promise<[Meyer]> {
-    const sparql = await sparql_query(ENDPOINT, QUERY, { limit: limit, offset: offset});
-    const parser = new SparqlJsonParser();
+  const sparql = await sparql_query(ENDPOINT, QUERY, { limit: limit, offset: offset});
+  const parser = new SparqlJsonParser();
 
-    return parser.parseJsonResults(sparql.data).map((e: any) => { 
-        const tc = e as QueryResult;
-        if (tc == null) return;
-        return {
-            ico: sparql_value(tc.ico),
-            meyer: sparql_value(tc.meyer),
-            addr: sparql_value(tc.addr)
-        }
-    }) as [Meyer];
+  return parser.parseJsonResults(sparql.data).map((e: any) => { 
+    const tc = e as QueryResult;
+    if (tc == null) return;
+    return {
+      ico: sparql_value(tc.ico),
+      meyer: sparql_value(tc.meyer),
+      addr: sparql_value(tc.addr)
+    }
+  }) as [Meyer];
 }
-
-queryODRRPMetadataDatabase().then(async (result) => {
-  const test = result.map((e:any) => { return e.addr });
-  var addresses = new Array<AddressRUIAN>();
-  var promises = new Array<Promise<[AddressRUIAN]>>();
-
-  //INFO: Server bails out on bigger payloads, chunk the work
-  for (var i = 0; i < result.length/80; i++) {
-    promises.push(queryRuianAddressPointURIs(test.slice(i * 80, i * 80 + 80) as [string]));
-  }
-
-  const exec = await Promise.all(promises);
-  const flat = (exec as any).flat() as [AddressRUIAN];
-  console.log(flat, flat.length);
-});
