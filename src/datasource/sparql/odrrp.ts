@@ -8,12 +8,11 @@
  * @endpoint: https://rpp-opendata.egon.gov.cz/odrpp/sparql
  */
 
-import axios from "axios";
 import { SparqlJsonParser } from "sparqljson-parse";
 import { SparqlNode, sparql_query, sparql_value } from "./@generic";
+import { queryRuianAddressPointURIs, AddressRUIAN } from "./ruian";
 
 const ENDPOINT='https://rpp-opendata.egon.gov.cz/odrpp/sparql';
-const FORMAT='application/sparql-results+json';
 
 const QUERY = `
 PREFIX gov: <https://slovník.gov.cz/legislativní/sbírka/111/2009/pojem/>
@@ -36,12 +35,13 @@ WHERE {
 interface QueryResult {
     ico: SparqlNode;
     addr: SparqlNode;
-    meyer: SparqlNode | null;
+    meyer: SparqlNode;
 }
 
-interface Meyer {
+export type Meyer = {
     ico: string;
     meyer: string | null;
+    addr: string;
 }
 
 export async function queryODRRPMetadataDatabase(
@@ -50,18 +50,29 @@ export async function queryODRRPMetadataDatabase(
 ) : Promise<[Meyer]> {
     const sparql = await sparql_query(ENDPOINT, QUERY, { limit: limit, offset: offset});
     const parser = new SparqlJsonParser();
-    
+
     return parser.parseJsonResults(sparql.data).map((e: any) => { 
         const tc = e as QueryResult;
         if (tc == null) return;
         return {
-            ico: tc.ico != null ? tc.ico.value : null,
-            //name: e.name.value,
-            meyer: tc.meyer != null ? tc.meyer.value : null
+            ico: sparql_value(tc.ico),
+            meyer: sparql_value(tc.meyer),
+            addr: sparql_value(tc.addr)
         }
     }) as [Meyer];
 }
 
-queryODRRPMetadataDatabase().then((result) => {
-    console.log(result);
-})
+queryODRRPMetadataDatabase().then(async (result) => {
+  const test = result.map((e:any) => { return e.addr });
+  var addresses = new Array<AddressRUIAN>();
+  var promises = new Array<Promise<[AddressRUIAN]>>();
+
+  //INFO: Server bails out on bigger payloads, chunk the work
+  for (var i = 0; i < result.length/80; i++) {
+    promises.push(queryRuianAddressPointURIs(test.slice(i * 80, i * 80 + 80) as [string]));
+  }
+
+  const exec = await Promise.all(promises);
+  const flat = (exec as any).flat() as [AddressRUIAN];
+  console.log(flat, flat.length);
+});

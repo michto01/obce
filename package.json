@@ -10,6 +10,7 @@
   "scripts": {
     "start": "ts-node ./src/index.ts",
     "test": "jest",
+    "ruian": "ts-node ./src/datasource/sparql/ruian.ts",
     "egon": "ts-node ./src/datasource/sparql/odrrp.ts",
     "wiki": "ts-node ./src/datasource/sparql/wikidata.ts"
   },
