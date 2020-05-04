@@ -10,7 +10,8 @@
   "scripts": {
     "start": "ts-node ./src/index.ts",
     "test": "jest",
-    "egon": "ts-node ./src/datasource/odrrp.ts"
+    "egon": "ts-node ./src/datasource/sparql/odrrp.ts",
+    "wiki": "ts-node ./src/datasource/sparql/wikidata.ts"
   },
   "dependencies": {
     "@types/libxmljs": "^0.18.5",

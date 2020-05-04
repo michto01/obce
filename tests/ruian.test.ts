@@ -1,6 +1,6 @@
 import {
   convertCoordinatesJtskToWgs
-} from "../src/ruian";
+} from "../src/datasource/ruian";
 
 test("Project S-JTSK coordinates to WGS84 using positive coordinates.", () => {
   const locations = [
